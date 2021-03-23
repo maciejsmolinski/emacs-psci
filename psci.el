@@ -145,8 +145,12 @@ default to the current buffer's directory."
          (extra-sources (psci--get-psc-package-sources!))
          (full-arg-list (append psci/arguments extra-sources))
          (buffer (apply 'make-comint-in-buffer psci/buffer-name nil
-                        psci-program nil "repl" full-arg-list)))
+                        psci-program nil "repl" full-arg-list))
+         (close-buffer-on-exit (lambda (process _)
+                                 (unless (process-live-p process)
+                                   (kill-buffer (process-buffer process))))))
     (with-current-buffer buffer
+      (set-process-sentinel (get-buffer-process buffer) close-buffer-on-exit)
       (psci-mode))
     (pop-to-buffer buffer)))
 
