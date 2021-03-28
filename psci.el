@@ -146,12 +146,15 @@ default to the current buffer's directory."
          (full-arg-list (append psci/arguments extra-sources))
          (buffer (apply 'make-comint-in-buffer psci/buffer-name nil
                         psci-program nil "repl" full-arg-list))
+         (process (get-buffer-process buffer))
          (close-buffer-on-exit (lambda (process _)
                                  (unless (process-live-p process)
                                    (kill-buffer (process-buffer process))))))
     (with-current-buffer buffer
-      (set-process-sentinel (get-buffer-process buffer) close-buffer-on-exit)
-      (psci-mode))
+      (when (eq (process-sentinel process) 'internal-default-process-sentinel)
+        (set-process-sentinel process close-buffer-on-exit))
+      (unless (derived-mode-p 'psci-mode)
+        (psci-mode)))
     (pop-to-buffer buffer)))
 
 (defvar psci-mode-map
