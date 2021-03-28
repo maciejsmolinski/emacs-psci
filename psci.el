@@ -143,20 +143,19 @@ default to the current buffer's directory."
   (let* ((default-directory project-root-folder)
          (psci-program psci/purs-path)
          (extra-sources (psci--get-psc-package-sources!))
-         (buffer (comint-check-proc psci/buffer-name)))
-    ;; pop to the "*psci*" buffer if the process is dead, the
-    ;; buffer is missing or it's got the wrong mode.
-    (pop-to-buffer
-     (if (or buffer (not (derived-mode-p 'psci-mode))
-             (comint-check-proc (current-buffer)))
-         (get-buffer-create (or buffer (psci--process-name psci/buffer-name)))
-       (current-buffer)))
-    ;; create the comint process if there is no buffer.
-    (unless buffer
-      (let ((full-arg-list (append psci/arguments extra-sources)))
-        (apply 'make-comint-in-buffer psci/buffer-name buffer
-               psci-program nil "repl" full-arg-list))
-      (psci-mode))))
+         (full-arg-list (append psci/arguments extra-sources))
+         (buffer (apply 'make-comint-in-buffer psci/buffer-name nil
+                        psci-program nil "repl" full-arg-list))
+         (process (get-buffer-process buffer))
+         (close-buffer-on-exit (lambda (process _)
+                                 (unless (process-live-p process)
+                                   (kill-buffer (process-buffer process))))))
+    (with-current-buffer buffer
+      (when (eq (process-sentinel process) 'internal-default-process-sentinel)
+        (set-process-sentinel process close-buffer-on-exit))
+      (unless (derived-mode-p 'psci-mode)
+        (psci-mode)))
+    (pop-to-buffer buffer)))
 
 (defvar psci-mode-map
   (let ((map (nconc (make-sparse-keymap) comint-mode-map)))
